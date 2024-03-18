@@ -49,4 +49,4 @@ In this homework, you will train a deep Q-Learning algorithm to land a lunar lan
 
 ### Credits
 
-This homework code was assembled by past course assistant [Dr. Desik Rengarajan](https://github.com/DesikRengarajan).
+This homework code was assembled by [Dr. Desik Rengarajan](https://github.com/DesikRengarajan).
