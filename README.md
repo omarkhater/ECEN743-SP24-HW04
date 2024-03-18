@@ -46,3 +46,7 @@ In this homework, you will train a deep Q-Learning algorithm to land a lunar lan
 3. **Algorithmic Improvements:** As we discussed in the class, there has been a number improvements in the deep Q-learning algorithm and architecture, such as double DQN, dueling DQN, prioritized experience replay, and many other (see the slides and related papers).  Implement one (or more!) of these algorithmic ideas. Explain your implementation and demonstrate the benefit.  
 
 4. **Deep Q-Learning on Another Environment:** Congratulations on implementing deep Q-Learning on the Lunar-Lander-v2 environment! Now,  learn the optimal  policy for another control problem (environment) using deep Q-Learning. You can select one environment from the \emph{Classical Control} set, \emph{Box2D} set or \emph{Atari Games} set in   Gymnasium.  In the PDF, you need to clearly specify the environment and provide a link to the corresponding page in Gymnasium. You need to include the training curve and describe the hyperparameters used. You should also include the video of the performance. 
+
+### Credits
+
+This homework code was assembled by past course assistant [Dr. Desik Rengarajan](https://github.com/DesikRengarajan).
