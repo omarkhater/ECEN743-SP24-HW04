@@ -1,6 +1,5 @@
 """
 ECEN 743: Reinforcement Learning
-Deep Q-Learning - Assembled by Dr. Desik Rengarajan
 Code tested using
     1. gymnasium 0.29.1
     2. box2d-py  2.3.5
