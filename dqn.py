@@ -25,6 +25,7 @@ import torch.optim as optim
 import argparse
 import numpy as np
 from collections import deque, namedtuple
+import matplotlib.pyplot as plt
 
 
 class ExperienceReplay:
@@ -149,7 +150,26 @@ class DQNAgent():
         if (self.t_train % self.update_freq) == 0:
             self.target_update(self.Q, self.Q_target, self.tau) #To be implemented 
 
-    def select_action(self, state, epsilon=0.):
+    def argmax(self, q_values):
+        """argmax with random tie-breaking
+        Args:
+            q_values (Numpy array): the array of action values
+        Returns:
+            action (int): an action with the highest value
+        """
+        top = float("-inf")
+        ties = []
+
+        for i in range(len(q_values)):
+            if q_values[i] > top:
+                top = q_values[i]
+                ties = []
+
+            if q_values[i] == top:
+                ties.append(i)
+
+        return np.random.RandomState(seed = 42).choice(ties)
+    def select_action(self, state, epsilon=0.1):
         """
         TODO: Complete this block to select action using epsilon greedy exploration 
         strategy
@@ -158,7 +178,13 @@ class DQNAgent():
         Return Type: int    
         """
         ###### TYPE YOUR CODE HERE ######
-        ################################# 
+        if self.rand_generator.rand() < epsilon:
+            action =  np.random.RandomState(seed = 42).choice(self.action_dim)
+        else:
+            values = self.Q.forward(state)
+            action = self.argmax(values)
+
+        return action
 
     def learn(self, experiences, discount):
         """
@@ -172,6 +198,16 @@ class DQNAgent():
         """         
         states, actions, rewards, next_states, dones = experiences
         ###### TYPE YOUR CODE HERE ######
+        v_t = self.Q.forward(states)
+        v_t1 = self.Q_target.forward(next_states)
+        v_t1 = torch.max(v_t1, dim=1)[0]
+        v_t1 = v_t1.unsqueeze(1)
+        target = rewards + (discount * v_t1)
+        loss = F.mse_loss(v_t, target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
         #################################
 
 
@@ -186,86 +222,114 @@ class DQNAgent():
         Return: None
         """ 
         ###### TYPE YOUR CODE HERE ######
+        Q_target = tau * Q + (1 - tau) * Q_target
+        # self.Q_target = Q_target
         #################################
 
+def decay_epsilon(epsilon, epsilon_end, epsilon_decay):
+    """Decays the exploration rate (epsilon) after each episode."""
+    # Decay epsilon
+    if epsilon > epsilon_end:
+        epsilon *= epsilon_decay
+        # Ensure epsilon does not fall below epsilon_end
+        epsilon = max(epsilon, epsilon_end)
+    return epsilon
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--env", default="LunarLander-v2")          # Gymnasium environment name
-    parser.add_argument("--seed", default=0, type=int)              # sets Gym, PyTorch and Numpy seeds
-    parser.add_argument("--n-episodes", default=2000, type=int)     # maximum number of training episodes
-    parser.add_argument("--batch-size", default=64, type=int)       # training batch size
-    parser.add_argument("--discount", default=0.99)                 # discount factor
-    parser.add_argument("--lr", default=5e-4)                       # learning rate
-    parser.add_argument("--tau", default=0.001)                     # soft update of target network
-    parser.add_argument("--max-size", default=int(1e5),type=int)    # experience replay buffer length
-    parser.add_argument("--update-freq", default=4, type=int)       # update frequency of target network
-    parser.add_argument("--gpu-index", default=0,type=int)          # GPU index
-    parser.add_argument("--max-esp-len", default=1000, type=int)    # maximum time of an episode
-    #exploration strategy
-    parser.add_argument("--epsilon-start", default=1)               # start value of epsilon
-    parser.add_argument("--epsilon-end", default=0.01)              # end value of epsilon
-    parser.add_argument("--epsilon-decay", default=0.995)           # decay value of epsilon
-    args = parser.parse_args()
+# if __name__ == "__main__":
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument("--env", default="LunarLander-v2")          # Gymnasium environment name
+#     parser.add_argument("--seed", default=0, type=int)              # sets Gym, PyTorch and Numpy seeds
+#     parser.add_argument("--n-episodes", default=2000, type=int)     # maximum number of training episodes
+#     parser.add_argument("--batch-size", default=64, type=int)       # training batch size
+#     parser.add_argument("--discount", default=0.99)                 # discount factor
+#     parser.add_argument("--lr", default=5e-4)                       # learning rate
+#     parser.add_argument("--tau", default=0.001)                     # soft update of target network
+#     parser.add_argument("--max-size", default=int(1e5),type=int)    # experience replay buffer length
+#     parser.add_argument("--update-freq", default=4, type=int)       # update frequency of target network
+#     parser.add_argument("--gpu-index", default=0,type=int)          # GPU index
+#     parser.add_argument("--max-esp-len", default=1000, type=int)    # maximum time of an episode
+#     #exploration strategy
+#     parser.add_argument("--epsilon-start", default=1)               # start value of epsilon
+#     parser.add_argument("--epsilon-end", default=0.01)              # end value of epsilon
+#     parser.add_argument("--epsilon-decay", default=0.995)           # decay value of epsilon
+#     args = parser.parse_args()
 
-    # making the environment    
-    env = gym.make(args.env)
+#     # making the environment    
+#     env = gym.make(args.env)
 
-    #setting seeds
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    random.seed(args.seed)
+#     #setting seeds
+#     torch.manual_seed(args.seed)
+#     np.random.seed(args.seed)
+#     random.seed(args.seed)
 
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.n
+#     state_dim = env.observation_space.shape[0]
+#     action_dim = env.action_space.n
 
-    kwargs = {
-        "state_dim":state_dim,
-        "action_dim":action_dim,
-        "discount":args.discount,
-        "tau":args.tau,
-        "lr":args.lr,
-        "update_freq":args.update_freq,
-        "max_size":args.max_size,
-        "batch_size":args.batch_size,
-        "gpu_index":args.gpu_index
-    }   
-    learner = DQNAgent(**kwargs) #Creating the DQN learning agent
+#     kwargs = {
+#         "state_dim":state_dim,
+#         "action_dim":action_dim,
+#         "discount":args.discount,
+#         "tau":args.tau,
+#         "lr":args.lr,
+#         "update_freq":args.update_freq,
+#         "max_size":args.max_size,
+#         "batch_size":args.batch_size,
+#         "gpu_index":args.gpu_index
+#     }   
+#     learner = DQNAgent(**kwargs) #Creating the DQN learning agent
 
-    moving_window = deque(maxlen=100)
-    epsilon = args.epsilon_start
-    for e in range(args.n_episodes):
-        state, _ = env.reset(seed=args.seed)
-        curr_reward = 0
-        for t in range(args.max_esp_len):
-            action = learner.select_action(state,epsilon) #To be implemented
-            n_state,reward,terminated,truncated,_ = env.step(action)
-            done = terminated or truncated 
-            learner.step(state,action,reward,n_state,done) #To be implemented
-            state = n_state
-            curr_reward += reward
-            if done:
-                break
-        moving_window.append(curr_reward)
+#     moving_window = deque(maxlen=100)
+#     epsilon = args.epsilon_start
+#     for e in range(args.n_episodes):
+#         state, _ = env.reset(seed=args.seed)
+#         curr_reward = 0
+#         for t in range(args.max_esp_len):
+#             action = learner.select_action(state,epsilon) #To be implemented
+#             n_state,reward,terminated,truncated,_ = env.step(action)
+#             done = terminated or truncated 
+#             learner.step(state,action,reward,n_state,done) #To be implemented
+#             state = n_state
+#             curr_reward += reward
+#             if done:
+#                 break
+#         moving_window.append(curr_reward)
 
-        """"
-        TODO: Write code for decaying the exploration rate using args.epsilon_decay
-        and args.epsilon_end. Note that epsilon has been initialized to args.epsilon_start  
-        1. You are encouraged to try new methods
-        """
-        ###### TYPE YOUR CODE HERE ######
-        #################################   
+#         """"
+#         TODO: Write code for decaying the exploration rate using args.epsilon_decay
+#         and args.epsilon_end. Note that epsilon has been initialized to args.epsilon_start  
+#         1. You are encouraged to try new methods
+#         """
+#         ###### TYPE YOUR CODE HERE ######
+#         epsilon = decay_epsilon(epsilon, epsilon_end, epsilon_decay)
+#         #################################   
         
-        if e % 100 == 0:
-            print('Episode Number {} Average Episodic Reward (over 100 episodes): {:.2f}'.format(e, np.mean(moving_window)))
+#         if e % 100 == 0:
+#             print('Episode Number {} Average Episodic Reward (over 100 episodes): {:.2f}'.format(e, np.mean(moving_window)))
         
-        """"
-        TODO: Write code for
-        1. Logging and plotting
-        2. Rendering the trained agent 
-        """
-        ###### TYPE YOUR CODE HERE ######
-        #################################
+#         """"
+#         TODO: Write code for
+#         1. Logging and plotting
+#         2. Rendering the trained agent 
+#         """
+#         ###### TYPE YOUR CODE HERE ######
+#         # Plotting the episodic rewards
+#         plt.figure(figsize=(10, 5))
+#         plt.plot(moving_window)
+#         plt.xlabel('Episode')
+#         plt.ylabel('Average Episodic Reward')
+#         plt.title('Episodic Reward Over Time')
+#         plt.show()
+
+#         env = gym.make(args.env)  # Recreate the environment to ensure it's fresh
+#         state, _ = env.reset(seed=args.seed)
+#         for t in range(args.max_esp_len):
+#             action = learner.select_action(state, 0)  # Use epsilon=0 for the greedy policy
+#             state, _, done, _ = env.step(action)
+#             env.render()
+#             if done:
+#                 break
+#         env.close()
+#         #################################
 
 
 
